@@ -1,0 +1,241 @@
+#!/bin/bash
+################################################################
+# Author: Arlen Li
+# Description: auto-login script with simple profile management
+# Create date: 2016-06-03
+# Last modified date: 2015-07-29
+#################################################################
+# Get iplist config file
+home_dir=~
+iplist=${home_dir}/.iplist
+login=${home_dir}/.login
+ftp=${home_dir}/.ftp
+retry=3
+curdir=${iplist%/*}
+# Set the color
+export black='\033[0m'
+export boldblack='\033[1;0m'
+export red='\033[31m'
+export boldred='\033[1;31m'
+export blue='\033[32m'
+export boldblue='\033[1;32m'
+export green='\033[39m'
+export boldgreen='\033[1;39m'
+export yellow='\033[33m'
+export boldyellow='\033[1;33m'
+export cyan='\033[34m'
+export boldcyan='\033[1;34m'
+export pink='\033[35m'
+export boldpink='\033[1;35m'
+export white='\033[37m'
+export boldwhite='\033[1;37m'
+
+_logging()
+{
+	local default_msg="No msg"
+	if [ $# -eq 2 ];then
+		message=${1:-$default_msg}	# 如果$1没有输入则为默认值default_msg.
+		color=${2:-black}		# 如果$1没有输入则为默认值black.
+		case $color in
+		black)
+			 printf "$black" ;;
+		boldblack)
+			 printf "$boldblack" ;;
+		red)
+			 printf "$red" ;;
+		boldred)
+			 printf "$boldred" ;;
+		green)
+			 printf "$green" ;;
+		boldgreen)
+			 printf "$boldgreen" ;;
+		yellow)
+			 printf "$yellow" ;;
+		boldyellow)
+			 printf "$boldyellow" ;;
+		blue)
+			 printf "$blue" ;;
+		boldblue)
+			 printf "$boldblue" ;;
+		magenta)
+			 printf "$magenta" ;;
+		boldmagenta)
+			 printf "$boldmagenta" ;;
+		cyan)
+			 printf "$cyan" ;;
+		boldcyan)
+			 printf "$boldcyan" ;;
+		white)
+			 printf "$white" ;;
+		boldwhite)
+			 printf "$boldwhite" ;;
+		*)
+			printf "$black" ;;
+	    esac
+	  printf "%s\n"  "$message"
+	  tput sgr0			# tput sgr0即恢复默认值
+	  printf "$black"
+	fi
+}
+
+debug()
+{
+	if [ ! -z "$1" ];then
+		_logging "$1" "cyan"
+	fi
+}
+
+error()
+{
+	if [ ! -z "$1" ];then
+		_logging "$1" "red"
+	fi
+}
+
+warning()
+{
+	if [ ! -z "$1" ];then
+		_logging "$1" "yellow"
+    fi
+}
+
+info()
+{
+	if [ ! -z "$1" ];then
+		_logging "$1" "green"
+    fi
+}
+
+function prompt {
+	debug "acc [in|show|rm|add] [keyword]"
+	info "    in: Login to spicified profile" 
+	info "    show: Show access list"
+	info "    rm: Remote profile"
+	info "    add: Add a new profile"
+	info "    ftp: Open sftp transfer with remote host"
+	exit 0
+}
+
+function do_in {
+	if [[ $# -eq 0 || $# -gt 1 ]]; then
+		error "[ERROR] We are expecting only one keyword"
+		exit 1
+	fi
+	retLine=`cat ${iplist} | grep $1 |wc -l`
+	if [[ $retLine -gt 1 || $retLine -eq 0 ]]; then
+		error "[ERROR] Not solid IP/hostname,search result is null or too many!"
+		exit 1
+	fi
+	ip=`cat $iplist | grep $1 | awk '{print $2}'`
+	user=`cat $iplist | grep $1 | awk '{print $3}'`
+	passwd=`cat $iplist | grep $1 | awk '{print $4}'`
+	port=`cat $iplist | grep $1 | awk '{print $5}'`
+	if [ -z $port ];then
+	    ${login} ${user} ${ip} ${passwd} 22
+	else
+	    ${login} ${user} ${ip} ${passwd} ${port}
+	fi
+}
+
+function do_ftp {
+	if [[ $# -eq 0 || $# -gt 1 ]]; then
+		error "[ERROR] We are expecting only one keyword"
+		exit 1
+	fi
+	retLine=`cat ${iplist} | grep $1 |wc -l`
+	if [[ $retLine -gt 1 || $retLine -eq 0 ]]; then
+		error "[ERROR] Not solid IP/hostname,search result is null or too many!"
+		exit 1
+	fi
+	ip=`cat $iplist | grep $1 | awk '{print $2}'`
+	user=`cat $iplist | grep $1 | awk '{print $3}'`
+	passwd=`cat $iplist | grep $1 | awk '{print $4}'`
+	port=`cat $iplist | grep $1 | awk '{print $5}'`
+	if [ -z $port ];then
+	    ${ftp} ${user} ${ip} ${passwd} 22
+	else
+	    ${ftp} ${user} ${ip} ${passwd} ${port}
+	fi
+}
+
+function do_lst {
+	cat $iplist | while read line
+	do 
+	    info "=========================================="
+	    echo $line|awk '{print "Profile: "$1"\n\rHost: "$2"\n\rUser: "$3"\n\r"}'
+	done
+}
+
+function do_add {
+       read -p "Profile Name:" name
+       read -p "User:" user
+       read -p "Password:" -s passwd
+       read -p "Host/IP:" host
+       read -p "Remote SSH port(Press enter if default port is 22):" port
+       chmod 600 $iplist
+       if [ -z ${port} ];then
+	       port=22
+	       echo "${name}    ${host}    ${user}    ${passwd}">>$iplist
+       else
+       	   echo "${name}    ${host}    ${user}    ${passwd}    ${port}">>$iplist
+       fi
+       info “New entry $name added....”
+       chmod 400 $iplist
+}
+
+function do_del {
+	if [ ! $# -eq 1 ];then
+	    error "Only 1 keyword required, must be profile name"
+	    exit 101
+	fi
+	cnt=`cat $iplist | grep -c $1`
+	if [ $cnt -gt 0 ];then
+		result=`cat $iplist | grep -n $1 | awk '{print $1,$2,$3}'`
+	    warning "Are you sure you want to delete all the entry listed below(y/n)?"
+	    echo -e "$result"
+	    while true
+		do read -p "(y/n)" choice
+		    if [ "$choice"x = "yx" ];then
+		    		chmod 600 $iplist
+				grep -v $1 $iplist >ip.new
+				mv -f ip.new $iplist
+				warning "Entry deleted successfully...."
+				chmod 400 $iplist
+				exit 0
+		    elif [ "$choice"x = "nx" ];then
+		    	warning "No entry deleted...."
+				exit 0
+		    else
+				error "Only \"y\" or \"n\" in lowcase would be accepted!!"
+		    fi
+		done
+	else
+	    error "Ooops~~ No entry found with keyword \"$1\""
+	fi
+}
+
+if [[ $# -eq 0 ]]; then
+	prompt
+fi
+
+case $1 in
+	"in" )
+	do_in $2
+	;;
+	"rm")
+	do_del $2
+	;;
+	"show" )
+	do_lst
+	;;
+	"ftp" )
+	do_ftp $2
+	;;
+	"add" )
+	do_add
+	;;
+	* )
+	error "Invalid argument..."
+	prompt
+	;;
+esac
