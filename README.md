@@ -7,9 +7,11 @@ Simple Bash shell doing automatic ssh credential submit using expect
 4. bash access in <profile_name>
 
 ## General usage
+~~~
 acc \[in|show|rm|add\] \[keyword\]
     in: Login to spicified profile
     show: Show access list
     rm: Remote profile
     add: Add a new profile
     ftp: Open sftp transfer with remote host
+~~~
