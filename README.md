@@ -6,9 +6,9 @@ Simple Bash shell doing automatic ssh credential submit using expect
 3. Execute `bash access add` to add a new profile
 4. bash access in <profile_name>
 
-## General usage
+## Command format
 ~~~
-acc \[in|show|rm|add\] \[keyword\]
+acc [in|show|rm|add] [keyword]
     in: Login to spicified profile
     show: Show access list
     rm: Remote profile
