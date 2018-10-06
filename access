@@ -179,7 +179,7 @@ function do_add {
        else
        	   echo "${name}    ${host}    ${user}    ${passwd}    ${port}">>$iplist
        fi
-       info “New entry $name added....”
+       info "New entry $name added...."
        chmod 400 $iplist
 }
 
